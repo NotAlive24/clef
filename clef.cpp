@@ -66,17 +66,26 @@ public:
       cerr << "Error: Could not open vault for writing.\n";
       return 1;
     }
-    cout << "Enter the text to insert in the file end (Use EXIT in a new line "
-            "to exit):\n";
     string addLine;
     int i = 1;
-    while (getline(cin, addLine)) {
-      if (addLine == "EXIT") {
+    string appName, username, password;
+
+    while (true) {
+      cout << "Enter the application name (Use EXIT to exit): ";
+      if (!getline(cin, appName))
+        break;
+      if (appName == "EXIT") {
         break;
       }
-      if (addLine != "") {
-        vault << addLine << "\n";
+      if (appName.empty()) {
+        continue;
       }
+      cout << "Enter the username: ";
+      getline(cin, username);
+      cout << "Enter the password: ";
+      getline(cin, password);
+
+      vault << appName << " " << username << " " << password << endl;
     }
     vault.close();
     cout << "\n";
@@ -105,9 +114,9 @@ int main() {
   Read rd;
   Write wt;
   rd.Readvault();
-  cout << "\n\n";
+  cout << "\n";
   wt.Writevault();
-  cout << "\n\n";
+  cout << "\n";
   rd.Readvault();
   return 0;
 }
