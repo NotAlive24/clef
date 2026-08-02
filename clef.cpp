@@ -5,12 +5,14 @@
 using namespace std;
 class ReadWrite {
 public:
-  int write() {
+  int check() {
     ifstream vault(".vault.clef");
     if (!vault.is_open()) {
       cerr << "File Not Found\n";
+      vault.close();
       return 404;
     }
+    vault.close();
     return 0;
   }
   int create() {
@@ -29,7 +31,7 @@ public:
 
 int main() {
   ReadWrite RW;
-  int filecheck = RW.write();
+  int filecheck = RW.check();
   char choice = 'n';
   if (filecheck == 404) {
     cout << "Do you want to create a new vault? (y/n): ";
