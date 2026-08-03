@@ -98,6 +98,12 @@ public:
         string added_string = app_name + "\t" + username + "\t" + password + "\n";
         master_vault_data += added_string;
     }
+
+    void WriteFile(string final_payload){
+        ofstream vault(".vault.clef", ios::binary);
+        vault.write(final_payload.data(), final_payload.size());
+        vault.close();
+    }
 };
 
 class Password {
@@ -112,7 +118,6 @@ public:
     }
 };
 
-
 int main() {
     if (sodium_init() < 0){
             cout << "Initialization failed";
@@ -120,7 +125,7 @@ int main() {
     Password pd;
     string master_password = pd.password();
 
-    string uname, password;
+    string password;
     CheckCreate CC;
     char choice = 'n';
     Read rd;
@@ -168,7 +173,9 @@ int main() {
         }
         wt.WriteRam(master_vault_data, appName, uname, passwd);
     }
-    
+    Encryption encrypt;
+    string final_payload = encrypt.enc(master_vault_data, master_password);
+    wt.WriteFile(final_payload);    
 
     cout << "\n";
     rd.Readvault();
