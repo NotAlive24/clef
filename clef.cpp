@@ -1,9 +1,45 @@
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
+#include <sodium.h>
 #include <iomanip>
 #include <string>
 using namespace std;
+
+class Encryption{
+public:
+    string enc(string text){
+        if (sodium_init() < 0){
+            return "Initialization failed";
+        }
+        
+        unsigned char key[crypto_secretbox_KEYBYTES];
+        crypto_secretbox_keygen(key);
+        
+        unsigned char nonce[crypto_secretbox_NONCEBYTES];
+        randombytes_buf(nonce, sizeof nonce);
+
+        string message = text;
+        size_t ciphertext_len = crypto_secretbox_MACBYTES + message.length();
+
+        unsigned char* ciphertext = new unsigned char[ciphertext_len];
+        crypto_secretbox_easy(ciphertext, (const unsigned char*)message.c_str(), message.length(), nonce, key);
+        
+        string cipher_str(reinterpret_cast<char*>(ciphertext), ciphertext_len);
+        
+        cout << "Encrypted successfully!" << endl;
+        
+        cout << "Ciphertext (Hex): ";
+        for(size_t i = 0; i < ciphertext_len; ++i) {
+            cout << hex << setw(2) << setfill('0') << (int)ciphertext[i];
+        }
+        cout << dec << endl;
+
+        delete[] ciphertext;
+        return cipher_str;
+    }
+};
+
 class CheckCreate {
 public:
     // Checking file existance
@@ -85,6 +121,10 @@ public:
             getline(cin, username);
             cout << "Enter the password: ";
             getline(cin, password);
+            Encryption enc;
+            appName = enc.enc(appName);
+            username = enc.enc(username);
+            password = enc.enc(password);
 
             vault << appName << "\t\t" << username << "\t\t" << password << endl;
         }
@@ -106,6 +146,7 @@ public:
         return passwd;
     }
 };
+
 
 int main() {
     Password pd;
