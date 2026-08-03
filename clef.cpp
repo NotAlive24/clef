@@ -6,6 +6,11 @@
 #include <string>
 using namespace std;
 
+class Decryption{
+public:
+    
+};
+
 class Encryption{
 public:
     string enc(string text, string password){
@@ -45,6 +50,8 @@ public:
         if (!vault.is_open()) {
             vault.close();
             cerr << "File Not Found\n";
+            cout << "------------------------------";
+            cout << "\n";
             return 404;
         } else {
             cout << "vault found, Do you want to use it? (y/n): ";
@@ -113,7 +120,9 @@ public:
         string passwd;
         cin >> passwd;
         cin.ignore();
-        
+        cout << "\n";
+        cout << "------------------------------";
+        cout << "\n";
         return passwd;
     }
 };
@@ -122,9 +131,6 @@ int main() {
     if (sodium_init() < 0){
             cout << "Initialization failed";
     }
-    Password pd;
-    string master_password = pd.password();
-
     string password;
     CheckCreate CC;
     char choice = 'n';
@@ -149,6 +155,9 @@ int main() {
         rd.Readvault();
         cout << "\n";
     }
+
+    Password pd;
+    string master_password = pd.password();
     
     Write wt;
     string master_vault_data = "", appName, uname, passwd;
@@ -171,8 +180,14 @@ int main() {
         if (passwd == ""){
             continue;
         }
+
+        cout << "\n";
+        cout << "------------------------------";        
+        cout << "\n";
+
         wt.WriteRam(master_vault_data, appName, uname, passwd);
     }
+
     Encryption encrypt;
     string final_payload = encrypt.enc(master_vault_data, master_password);
     wt.WriteFile(final_payload);    
@@ -180,6 +195,7 @@ int main() {
     cout << "\n";
     rd.Readvault();
     cout << "\n";
+    cout << "------------------------------";
     cout << "\n";
     return 0;
 }
