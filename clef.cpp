@@ -8,35 +8,32 @@ using namespace std;
 
 class Encryption{
 public:
-    string enc(string text){
-        if (sodium_init() < 0){
-            return "Initialization failed";
+    string enc(string text, string password){
+        unsigned char salt[16];
+        randombytes_buf(salt, sizeof(salt));
+
+        unsigned char key[32];
+        unsigned long long key_len = sizeof(key);
+        if (crypto_pwhash(key, sizeof key, 
+                      password.c_str(), password.length(), 
+                      salt, 
+                      crypto_pwhash_OPSLIMIT_INTERACTIVE, 
+                      crypto_pwhash_MEMLIMIT_INTERACTIVE, 
+                      crypto_pwhash_ALG_DEFAULT) != 0) {
+        std::cerr << "Error: Out of memory during key derivation.\n";
+        return "ERROR";
         }
-        
-        unsigned char key[crypto_secretbox_KEYBYTES];
-        crypto_secretbox_keygen(key);
-        
-        unsigned char nonce[crypto_secretbox_NONCEBYTES];
-        randombytes_buf(nonce, sizeof nonce);
-
-        string message = text;
-        size_t ciphertext_len = crypto_secretbox_MACBYTES + message.length();
-
-        unsigned char* ciphertext = new unsigned char[ciphertext_len];
-        crypto_secretbox_easy(ciphertext, (const unsigned char*)message.c_str(), message.length(), nonce, key);
-        
-        string cipher_str(reinterpret_cast<char*>(ciphertext), ciphertext_len);
-        
-        cout << "Encrypted successfully!" << endl;
-        
-        cout << "Ciphertext (Hex): ";
-        for(size_t i = 0; i < ciphertext_len; ++i) {
-            cout << hex << setw(2) << setfill('0') << (int)ciphertext[i];
-        }
-        cout << dec << endl;
-
-        delete[] ciphertext;
-        return cipher_str;
+        unsigned char nonce[24];
+        randombytes_buf(nonce, sizeof(nonce));
+        size_t enc_len = text.length() + crypto_secretbox_MACBYTES;
+        unsigned char* encrypted_text = new unsigned char[enc_len];
+        crypto_secretbox_easy(encrypted_text, (const unsigned char*)text.c_str(), text.length(), nonce, key);
+        string payload = "";
+        payload.append((const char*)salt, sizeof(salt));
+        payload.append((const char*)nonce, sizeof(nonce));
+        payload.append((const char*)encrypted_text, enc_len);
+        delete[] encrypted_text;
+        return payload;
     }
 };
 
@@ -97,41 +94,9 @@ public:
 
 class Write {
 public:
-    int Writevault() {
-        ofstream vault(".vault.clef", ios::app);
-        if (!vault.is_open()) {
-            cerr << "Error: Could not open vault for writing.\n";
-            return 1;
-        }
-        string addLine;
-        int i = 1;
-        string appName, username, password;
-
-        while (true) {
-            cout << "Enter the application name (Use EXIT to exit): ";
-            if (!getline(cin, appName))
-                break;
-            if (appName == "EXIT") {
-                break;
-            }
-            if (appName.empty()) {
-                continue;
-            }
-            cout << "Enter the username: ";
-            getline(cin, username);
-            cout << "Enter the password: ";
-            getline(cin, password);
-            Encryption enc;
-            appName = enc.enc(appName);
-            username = enc.enc(username);
-            password = enc.enc(password);
-
-            vault << appName << "\t\t" << username << "\t\t" << password << endl;
-        }
-        vault.close();
-        cout << "\n";
-        cout << "Data saved successfully!\n";
-        return 0;
+    void WriteRam(string& master_vault_data ,string app_name, string username, string password) {
+        string added_string = app_name + "\t" + username + "\t" + password + "\n";
+        master_vault_data += added_string;
     }
 };
 
@@ -149,14 +114,16 @@ public:
 
 
 int main() {
+    if (sodium_init() < 0){
+            cout << "Initialization failed";
+    }
     Password pd;
-    pd.password();
+    string master_password = pd.password();
 
     string uname, password;
     CheckCreate CC;
     char choice = 'n';
     Read rd;
-    Write wt;
 
     int filecheck = CC.check();
     if(filecheck == 1){
@@ -177,8 +144,35 @@ int main() {
         rd.Readvault();
         cout << "\n";
     }
-    wt.Writevault();
+    
+    Write wt;
+    string master_vault_data = "", appName, uname, passwd;
+    while (true){
+        cout << "Enter the application name (EXIT to exit): ";
+        getline(cin, appName);
+        if (appName == ""){
+            continue;
+        }
+        if (appName == "EXIT"){
+            break;
+        }
+        cout << "Enter the username: ";
+        getline(cin, uname);
+        if (uname == ""){
+            continue;
+        }
+        cout << "Enter the password ";
+        getline(cin, passwd);
+        if (passwd == ""){
+            continue;
+        }
+        wt.WriteRam(master_vault_data, appName, uname, passwd);
+    }
+    
+
     cout << "\n";
     rd.Readvault();
+    cout << "\n";
+    cout << "\n";
     return 0;
 }
