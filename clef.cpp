@@ -119,15 +119,14 @@ public:
 
 class Read {
 public:
-    int Readvault() {
-        ifstream vault(".vault.clef");
-        string line;
-        int i = 1;
-        while (getline(vault, line)) {
-            cout << i << ".\t" << line << endl;
-            i++;
-        }
-        return 0;
+    string Readvault(string master_password) {
+        Decryption dec;
+        ifstream vault(".vault.clef", ios::binary | ios::ate);
+        streamsize size = vault.tellg();
+        vault.seekg(0, ios::beg);
+        string raw_payload(size, '\0');
+        vault.read(&raw_payload[0], size);
+        return dec.dec(raw_payload, master_password);
     }
 };
 
@@ -152,82 +151,88 @@ public:
         string passwd;
         cin >> passwd;
         cin.ignore();
-        cout << "\n";
-        cout << "------------------------------";
-        cout << "\n";
         return passwd;
     }
 };
 
 int main() {
+    // Sodium initialization
     if (sodium_init() < 0){
-            cout << "Initialization failed";
+        cout << "Initialization failed";
     }
+    // Objects
     string password;
     CheckCreate CC;
-    char choice = 'n';
     Read rd;
+    Write wt;
+    Password pd;
+    Encryption encrypt;
+    Decryption decrypt;
 
-    int filecheck = CC.check();
-    if(filecheck == 1){
-        rd.Readvault();
-    }
+    // Variables
+    int check = CC.check();
+    char choice = 'y';
+    string master_vault_data = "", appName, uname, passwd;
+    string master_password;
 
-    if (filecheck == 404) {
-        cout << "Do you want to create a new vault? (y/n): ";
+    // Logic for phase 1
+    if (check == 404){
+        cout << "Vault not found, Do you want to create a new vault? (Y/n): ";
         cin >> choice;
+        master_password = pd.password();
         cin.ignore();
-        if (choice == 'y' || choice == 'Y') {
+        if(choice == 'y' || choice == 'Y'){
             CC.create();
-        } else {
+        }else if(choice == 'n' || choice == 'N'){
+            cout << "Exiting....";
+            exit(1);
+        }else {
+            cout << "Invaild syntax...";
             exit(1);
         }
+    }else if(check == 1){
+        cout << "Enter your master password to open the vault: ";
+        cin >> master_password;
+        master_vault_data = rd.Readvault(master_password);
+        cout << master_vault_data;
     }
-    if (choice != 'n') {
-        rd.Readvault();
-        cout << "\n";
-    }
-
-    Password pd;
-    string master_password = pd.password();
+    choice = 'y';
+    cout << "Do you want to write in the vault? (Y/n): ";
+    cin >> choice;
     
-    Write wt;
-    string master_vault_data = "", appName, uname, passwd;
-    while (true){
-        cout << "Enter the application name (EXIT to exit): ";
-        getline(cin, appName);
-        if (appName == ""){
-            continue;
-        }
-        if (appName == "EXIT"){
-            break;
-        }
-        cout << "Enter the username: ";
-        getline(cin, uname);
-        if (uname == ""){
-            continue;
-        }
-        cout << "Enter the password ";
-        getline(cin, passwd);
-        if (passwd == ""){
-            continue;
-        }
 
-        cout << "\n";
-        cout << "------------------------------";        
-        cout << "\n";
-
-        wt.WriteRam(master_vault_data, appName, uname, passwd);
+    if(choice == 'y' || choice == 'Y'){
+        // Write to RAM
+        while (true){
+            cout << "Enter the application name (EXIT to exit): ";
+            getline(cin, appName);
+            if (appName == ""){
+                continue;
+            }
+            if (appName == "EXIT"){
+                break;
+            }
+            cout << "Enter the username: ";
+            getline(cin, uname);
+            if (uname == ""){
+                continue;
+            }
+            cout << "Enter the password ";
+            getline(cin, passwd);
+            if (passwd == ""){
+                continue;
+            }
+            wt.WriteRam(master_vault_data, appName, uname, passwd);
+        }
+    }else{
+        exit(1);
     }
 
-    Encryption encrypt;
-    string final_payload = encrypt.enc(master_vault_data, master_password);
-    wt.WriteFile(final_payload);    
+    // Passing the master data and the master password to encrypt
+    string encrypted_text = encrypt.enc(master_vault_data, master_password);
 
-    cout << "\n";
-    rd.Readvault();
-    cout << "\n";
-    cout << "------------------------------";
-    cout << "\n";
+    // Writing the encrypted_text to File
+    wt.WriteFile(encrypted_text);
+
     return 0;
 }
