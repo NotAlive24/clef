@@ -1,8 +1,11 @@
 # Clef Vault 🔐
 <p align="left">
-  <img src="https://badgen.net/badge/Version/1.2/blue" alt="Version">
-  <img src="https://badgen.net/github/size/USER/REPO" alt="File Size">
-  <img src="https://badgen.net/badge/Language/C++/cyan" alt="Language">
+  <img src="https://img.shields.io/github/v/release/NotAlive24/clef?color=blue&label=Version&style=flat" alt="Version">
+  <img src="https://img.shields.io/github/repo-size/NotAlive24/clef?color=green&label=Size&style=flat" alt="Size">
+  <img src="https://img.shields.io/github/languages/top/NotAlive24/clef?color=cyan&style=flat" alt="Language">
+  <img src="https://img.shields.io/github/license/NotAlive24/clef?color=orange&style=flat" alt="License">
+  <img src="https://img.shields.io/github/last-commit/NotAlive24/clef?color=purple&style=flat" alt="Last Commit">
+  <img src="https://img.shields.io/github/issues/NotAlive24/clef?color=red&style=flat" alt="Issues">
 </p>
 
 A locally-hosted, military-grade cryptographic password manager built entirely in C++. 
