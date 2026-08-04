@@ -1,6 +1,6 @@
 # Clef Vault 🔐
 <p align="left">
-  <img src="https://badgen.net/github/release/USER/REPO" alt="Version">
+  <img src="https://badgen.net/badge/Version/1.2/blue" alt="Version">
   <img src="https://badgen.net/github/size/USER/REPO" alt="File Size">
   <img src="https://badgen.net/badge/Language/C++/cyan" alt="Language">
 </p>
