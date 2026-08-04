@@ -1,9 +1,10 @@
 # Clef Vault 🔐
 <p align="left">
-  <img src="https://shields.io" alt="Version">
-  <img src="https://shields.io" alt="File Size">
-  <img src="https://shields.io" alt="Language">
+  <img src="https://badgen.net" alt="Version">
+  <img src="https://badgen.net" alt="File Size">
+  <img src="https://badgen.net" alt="Language">
 </p>
+
 
 A locally-hosted, military-grade cryptographic password manager built entirely in C++. 
 
