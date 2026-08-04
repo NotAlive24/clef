@@ -18,6 +18,7 @@ This isn't just a Base64 encoding toy; this uses `libsodium` to provide genuine,
 
 ### The Payload Structure
 When the program saves to the hard drive, it packs the binary data into a single string in this exact order:
+
 `[ 16-byte Salt ] + [ 24-byte Nonce ] + [ Ciphertext + MAC ]`
 
 To decrypt, the program dynamically slices this payload back into its three original pieces, rebuilds the master key using the extracted salt, and unlocks the ciphertext.
