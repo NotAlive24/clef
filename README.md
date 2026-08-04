@@ -1,7 +1,10 @@
 # Clef Vault 🔐
-![Version](https://shields.io)
-![File Size](https://shields.io)
-![Language](https://shields.io)
+<p align="left">
+  <img src="https://shields.io" alt="Version">
+  <img src="https://shields.io" alt="File Size">
+  <img src="https://shields.io" alt="Language">
+</p>
+
 A locally-hosted, military-grade cryptographic password manager built entirely in C++. 
 
 No cloud, no subscriptions, no third-party servers. Just you, your master password, and a mathematically secure vault living directly on your hard drive.
