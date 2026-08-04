@@ -180,7 +180,6 @@ int main() {
         cout << "Vault not found, Do you want to create a new vault? (Y/n): ";
         cin >> choice;
         master_password = pd.password();
-        cin.ignore();
         if(choice == 'y' || choice == 'Y'){
             CC.create();
         }else if(choice == 'n' || choice == 'N'){
@@ -199,6 +198,7 @@ int main() {
     choice = 'y';
     cout << "Do you want to write in the vault? (Y/n): ";
     cin >> choice;
+    cin.ignore();
     
 
     if(choice == 'y' || choice == 'Y'){
