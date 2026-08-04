@@ -193,6 +193,9 @@ int main() {
         cout << "Enter your master password to open the vault: ";
         cin >> master_password;
         master_vault_data = rd.Readvault(master_password);
+        if (master_vault_data == "ERROR") {
+            exit(1);
+        }
         cout << master_vault_data;
     }
     choice = 'y';
