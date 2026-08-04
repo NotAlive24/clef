@@ -1,10 +1,9 @@
 # Clef Vault 🔐
 <p align="left">
-  <img src="https://badgen.net" alt="Version">
-  <img src="https://badgen.net" alt="File Size">
-  <img src="https://badgen.net" alt="Language">
+  <img src="https://badgen.net/github/release/USER/REPO" alt="Version">
+  <img src="https://badgen.net/github/size/USER/REPO" alt="File Size">
+  <img src="https://badgen.net/badge/Language/C++/cyan" alt="Language">
 </p>
-
 
 A locally-hosted, military-grade cryptographic password manager built entirely in C++. 
 
