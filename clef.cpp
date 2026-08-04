@@ -8,7 +8,39 @@ using namespace std;
 
 class Decryption{
 public:
-    
+    string dec(string file_data,  string master_password){
+        unsigned char salt[16];
+        for(int i = 0; i<16; i++){
+            salt[i] = (unsigned char)file_data[i];
+        }
+        unsigned char nonce[24];
+        for(int i = 0; i<24; i++){
+            nonce[i] = (unsigned char)file_data[i+16];
+        }
+        size_t ciper_len = file_data.length()-40;
+        unsigned char* ciper = new unsigned char[ciper_len];
+        for(int i = 0; i<ciper_len; i++){
+            ciper[i] = (unsigned char)file_data[i+40];
+        }
+        unsigned char key[32];
+        if (crypto_pwhash(key, sizeof key, master_password.c_str(), master_password.length(), salt, crypto_pwhash_OPSLIMIT_INTERACTIVE, crypto_pwhash_MEMLIMIT_INTERACTIVE, crypto_pwhash_ALG_DEFAULT) != 0) {
+            cerr << "Error: Out of memory during key derivation.\n";
+            return "ERROR";
+        }
+        size_t plain_len = ciper_len - crypto_secretbox_MACBYTES;
+        unsigned char* plain_mem = new unsigned char[plain_len];
+        int pass_check = crypto_secretbox_open_easy(plain_mem, ciper, ciper_len, nonce, key);
+        if (pass_check == -1){
+            cerr << "Incorrect Password";
+            delete[] ciper;
+            delete[] plain_mem;
+            return "ERROR";
+        }
+        string decrypted_text((char*)plain_mem, plain_len);
+        delete[] ciper;
+        delete[] plain_mem;
+        return decrypted_text;
+    }
 };
 
 class Encryption{
@@ -25,7 +57,7 @@ public:
                       crypto_pwhash_OPSLIMIT_INTERACTIVE, 
                       crypto_pwhash_MEMLIMIT_INTERACTIVE, 
                       crypto_pwhash_ALG_DEFAULT) != 0) {
-        std::cerr << "Error: Out of memory during key derivation.\n";
+        cerr << "Error: Out of memory during key derivation.\n";
         return "ERROR";
         }
         unsigned char nonce[24];
