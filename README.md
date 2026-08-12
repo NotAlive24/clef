@@ -12,6 +12,14 @@ A locally-hosted, military-grade cryptographic password manager built entirely i
 
 No cloud, no subscriptions, no third-party servers. Just you, your master password, and a mathematically secure vault living directly on your hard drive.
 
+## ✨ What's New in v2.0: Core Architecture Update
+Version 2.0 transitions Clef Vault from a static encryption script into a fully interactive, memory-safe cryptographic management engine.
+*   **Data Lifecycle Management:** Introduced an interactive CLI interface allowing users to dynamically read, append, and safely delete specific credential entries during a single active session.
+*   **Cryptographic Integrity Checks:** Engineered fail-safes into the `Decryption` engine to detect corrupted, empty, or tampered `.vault.clef` files prior to initiating key derivation, preventing fatal system aborts (`SIGABRT`).
+*   **Secure Memory Allocation:** Overhauled the binary extraction pipeline to utilize strictly sized dynamic arrays, ensuring 100% garbage collection (`delete[]`) even during failed decryption attempts.
+*   **In-Memory Stream Parsing:** Implemented `istringstream` logic for targeted credential deletion, ensuring that master vault modifications are handled entirely in RAM before overwriting the binary payload.
+*   **Input Buffer Sanitization:** Resolved terminal buffer overflows by strategically flushing input streams, ensuring clean standard input (`stdin`) reading across varied application loops.
+
 ## 🚀 What It Does
 Clef Vault allows you to store credentials for different applications securely. It takes your plaintext passwords, encrypts them using state-of-the-art cryptography, and packs them into a single binary file (`.vault.clef`). When you want your passwords back, you provide your master password, and the vault unpacks them straight into your terminal.
 
@@ -44,3 +52,4 @@ g++ main.cpp -o vault -lsodium
 
 # Run the executable
 ./vault
+```
