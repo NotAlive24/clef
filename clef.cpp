@@ -249,7 +249,9 @@ int main() {
         if (master_vault_data == "ERROR") {
             exit(1);
         }
+        cout << "===================================\n";
         cout << master_vault_data;
+        cout << "===================================\n";
     }
     while (true){
         cout << "Options: (A)dd new password, (D)elete a password, (S)ave and Exit: ";
