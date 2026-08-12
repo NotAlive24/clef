@@ -4,11 +4,16 @@
 #include <sodium.h>
 #include <iomanip>
 #include <string>
+#include <sstream>
 using namespace std;
 
 class Decryption{
 public:
     string dec(string file_data,  string master_password){
+        if (file_data.length() < 40) {
+            cerr << "Error: Vault file is corrupted or empty!\n";
+            return "ERROR";
+        }
         unsigned char salt[16];
         for(int i = 0; i<16; i++){
             salt[i] = (unsigned char)file_data[i];
@@ -142,6 +147,33 @@ public:
         vault.write(final_payload.data(), final_payload.size());
         vault.close();
     }
+
+    void WRAM(string& master_vault_data){
+        Write wt;
+        string appName, uname, passwd;
+        // Write to RAM
+        while (true){
+            cout << "Enter the application name (EXIT to exit): ";
+            getline(cin, appName);
+            if (appName == ""){
+                continue;
+            }
+            if (appName == "EXIT"){
+                break;
+            }
+            cout << "Enter the username: ";
+            getline(cin, uname);
+            if (uname == ""){
+                continue;
+            }
+            cout << "Enter the password: ";
+            getline(cin, passwd);
+            if (passwd == ""){
+                continue;
+            }
+            wt.WriteRam(master_vault_data, appName, uname, passwd);
+        }
+    }
 };
 
 class Password {
@@ -155,6 +187,26 @@ public:
     }
 };
 
+class Delete{
+public:
+    void removeLine(string& master_vault_data, string target_app){
+        string updated_vault;
+        bool found = false;
+        string line;
+        istringstream stream(master_vault_data);
+        while (getline(stream, line)){
+            if (line.find(target_app + "\t") == 0){
+                found = true;
+                cout << "Deleted successfully!\n";
+            }else{
+                updated_vault += line + "\n";
+            }
+        }
+        master_vault_data = updated_vault;
+        if (!found) { cout << "App not found!\n"; }
+    }
+};
+
 int main() {
     // Sodium initialization
     if (sodium_init() < 0){
@@ -165,6 +217,7 @@ int main() {
     CheckCreate CC;
     Read rd;
     Write wt;
+    Delete dt;
     Password pd;
     Encryption encrypt;
     Decryption decrypt;
@@ -172,7 +225,7 @@ int main() {
     // Variables
     int check = CC.check();
     char choice = 'y';
-    string master_vault_data = "", appName, uname, passwd;
+    string master_vault_data = "", appName;
     string master_password;
 
     // Logic for phase 1
@@ -198,37 +251,20 @@ int main() {
         }
         cout << master_vault_data;
     }
-    choice = 'y';
-    cout << "Do you want to write in the vault? (Y/n): ";
-    cin >> choice;
-    cin.ignore();
-    
-
-    if(choice == 'y' || choice == 'Y'){
-        // Write to RAM
-        while (true){
-            cout << "Enter the application name (EXIT to exit): ";
-            getline(cin, appName);
-            if (appName == ""){
-                continue;
-            }
-            if (appName == "EXIT"){
-                break;
-            }
-            cout << "Enter the username: ";
-            getline(cin, uname);
-            if (uname == ""){
-                continue;
-            }
-            cout << "Enter the password ";
-            getline(cin, passwd);
-            if (passwd == ""){
-                continue;
-            }
-            wt.WriteRam(master_vault_data, appName, uname, passwd);
+    while (true){
+        cout << "Options: (A)dd new password, (D)elete a password, (S)ave and Exit: ";
+        cin >> choice;
+        cin.ignore();
+        if (choice == 'A' || choice == 'a'){
+            wt.WRAM(master_vault_data);
         }
-    }else{
-        exit(1);
+        else if (choice == 'D' || choice == 'd'){
+            cout << "Which app username and password should be deleted: ";
+            getline(cin, appName);
+            dt.removeLine(master_vault_data, appName);
+        }
+        else
+            break;
     }
 
     // Passing the master data and the master password to encrypt

@@ -31,8 +31,8 @@ To decrypt, the program dynamically slices this payload back into its three orig
 
 ## ⚙️ The Workflow
 1.  **Boot & Check:** The program checks if `.vault.clef` exists. If not, it prompts you to create one and set a master password.
-2.  **Decrypt to RAM:** If the vault exists, it reads the *raw binary* into memory, prompts for the master password, and decrypts the contents for you to view.
-3.  **Edit (In-Memory):** You can add new apps, usernames, and passwords. These are appended to a string living purely in RAM.
+2.  **Decrypt to RAM:** If the vault exists, it reads the *raw binary* into memory, prompts for the master password, and decrypts the contents.
+3.  **Manage (In-Memory):** A built-in menu allows you to **(A)dd** new passwords or **(D)elete** existing ones by searching for the app name. All changes happen purely in RAM.
 4.  **Lock & Save:** Upon exit, the program generates a *brand new* Salt and Nonce, encrypts the entire updated block of text, overwrites the old `.vault.clef`, and wipes the plaintext from RAM.
 
 ## 🛠️ How to Compile & Run
