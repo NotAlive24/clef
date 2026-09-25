@@ -1,279 +1,256 @@
-#include <cstdlib>
-#include <fstream>
 #include <iostream>
-#include <sodium.h>
-#include <iomanip>
+#include <fstream>
+#include <vector>
 #include <string>
 #include <sstream>
-using namespace std;
+#include <sodium.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 
-class Decryption{
-public:
-    string dec(string file_data,  string master_password){
-        if (file_data.length() < 40) {
-            cerr << "Error: Vault file is corrupted or empty!\n";
-            return "ERROR";
-        }
-        unsigned char salt[16];
-        for(int i = 0; i<16; i++){
-            salt[i] = (unsigned char)file_data[i];
-        }
-        unsigned char nonce[24];
-        for(int i = 0; i<24; i++){
-            nonce[i] = (unsigned char)file_data[i+16];
-        }
-        size_t ciper_len = file_data.length()-40;
-        unsigned char* ciper = new unsigned char[ciper_len];
-        for(int i = 0; i<ciper_len; i++){
-            ciper[i] = (unsigned char)file_data[i+40];
-        }
-        unsigned char key[32];
-        if (crypto_pwhash(key, sizeof key, master_password.c_str(), master_password.length(), salt, crypto_pwhash_OPSLIMIT_INTERACTIVE, crypto_pwhash_MEMLIMIT_INTERACTIVE, crypto_pwhash_ALG_DEFAULT) != 0) {
-            cerr << "Error: Out of memory during key derivation.\n";
-            return "ERROR";
-        }
-        size_t plain_len = ciper_len - crypto_secretbox_MACBYTES;
-        unsigned char* plain_mem = new unsigned char[plain_len];
-        int pass_check = crypto_secretbox_open_easy(plain_mem, ciper, ciper_len, nonce, key);
-        if (pass_check == -1){
-            cerr << "Incorrect Password";
-            delete[] ciper;
-            delete[] plain_mem;
-            return "ERROR";
-        }
-        string decrypted_text((char*)plain_mem, plain_len);
-        delete[] ciper;
-        delete[] plain_mem;
-        return decrypted_text;
+constexpr size_t SALT_LEN = crypto_pwhash_SALTBYTES;
+constexpr size_t NONCE_LEN = crypto_secretbox_NONCEBYTES;
+constexpr size_t MAC_LEN = crypto_secretbox_MACBYTES;
+constexpr size_t MIN_PAYLOAD_LEN = SALT_LEN + NONCE_LEN + MAC_LEN;
+constexpr char VAULT_PATH[] = ".vault.clef";
+
+void secure_zero_string(std::string& str) {
+    if (!str.empty()) {
+        sodium_memzero(str.data(), str.capacity());
+        str.clear();
     }
-};
+}
 
-class Encryption{
-public:
-    string enc(string text, string password){
-        unsigned char salt[16];
+namespace VaultSecurity {
+
+    bool init() {
+        if (sodium_init() < 0) {
+            std::cerr << "[!] Error: Cryptographic library (libsodium) failed to initialize.\n";
+            return false;
+        }
+        return true;
+    }
+
+    bool create_secure_file() {
+        int fd = open(VAULT_PATH, O_WRONLY | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
+        if (fd == -1) {
+            std::cerr << "[!] Error: Failed to create vault file with secure permissions.\n";
+            return false;
+        }
+        close(fd);
+        return true;
+    }
+
+    bool file_exists() {
+        struct stat buffer;
+        return (stat(VAULT_PATH, &buffer) == 0);
+    }
+
+    bool derive_key(uint8_t* key, const std::string& password, const uint8_t* salt) {
+        if (crypto_pwhash(key, crypto_secretbox_KEYBYTES,
+                         password.c_str(), password.length(),
+                         salt,
+                         crypto_pwhash_OPSLIMIT_INTERACTIVE,
+                         crypto_pwhash_MEMLIMIT_INTERACTIVE,
+                         crypto_pwhash_ALG_DEFAULT) != 0) {
+            std::cerr << "[!] Error: Key derivation failed (Out of memory).\n";
+            sodium_memzero(key, crypto_secretbox_KEYBYTES);
+            return false;
+        }
+        return true;
+    }
+
+    bool encrypt(const std::string& plaintext, const std::string& password, std::vector<uint8_t>& payload_out) {
+        uint8_t salt[SALT_LEN];
+        uint8_t nonce[NONCE_LEN];
+        uint8_t key[crypto_secretbox_KEYBYTES];
+
         randombytes_buf(salt, sizeof(salt));
-
-        unsigned char key[32];
-        unsigned long long key_len = sizeof(key);
-        if (crypto_pwhash(key, sizeof key, 
-                      password.c_str(), password.length(), 
-                      salt, 
-                      crypto_pwhash_OPSLIMIT_INTERACTIVE, 
-                      crypto_pwhash_MEMLIMIT_INTERACTIVE, 
-                      crypto_pwhash_ALG_DEFAULT) != 0) {
-        cerr << "Error: Out of memory during key derivation.\n";
-        return "ERROR";
-        }
-        unsigned char nonce[24];
         randombytes_buf(nonce, sizeof(nonce));
-        size_t enc_len = text.length() + crypto_secretbox_MACBYTES;
-        unsigned char* encrypted_text = new unsigned char[enc_len];
-        crypto_secretbox_easy(encrypted_text, (const unsigned char*)text.c_str(), text.length(), nonce, key);
-        string payload = "";
-        payload.append((const char*)salt, sizeof(salt));
-        payload.append((const char*)nonce, sizeof(nonce));
-        payload.append((const char*)encrypted_text, enc_len);
-        delete[] encrypted_text;
-        return payload;
-    }
-};
 
-class CheckCreate {
-public:
-    // Checking file existance
-    int check() {
-        ifstream vault(".vault.clef");
-        if (!vault.is_open()) {
-            vault.close();
-            cerr << "File Not Found\n";
-            cout << "------------------------------";
-            cout << "\n";
-            return 404;
-        } else {
-            cout << "vault found, Do you want to use it? (y/n): ";
-            char open;
-            cin >> open;
-            if (open == 'y' || open == 'Y') {
-                return 1;
-            } else if (open == 'n' || open == 'N') {
-                exit(1);
-            } else {
-                cerr << "Invaild input";
-                exit(1);
-            }
+        if (!derive_key(key, password, salt)) {
+            return false;
         }
-        vault.close();
-        return 0;
+
+        size_t cipher_len = plaintext.length() + MAC_LEN;
+        std::vector<uint8_t> ciphertext(cipher_len);
+
+        crypto_secretbox_easy(
+            ciphertext.data(),
+            reinterpret_cast<const unsigned char*>(plaintext.c_str()),
+            plaintext.length(),
+            nonce,
+            key
+        );
+
+        sodium_memzero(key, sizeof(key));
+
+        payload_out.clear();
+        payload_out.insert(payload_out.end(), salt, salt + SALT_LEN);
+        payload_out.insert(payload_out.end(), nonce, nonce + NONCE_LEN);
+        payload_out.insert(payload_out.end(), ciphertext.begin(), ciphertext.end());
+
+        return true;
     }
-    // Creating file
-    int create() {
-        ofstream vault(".vault.clef");
-        if (vault) {
-            cout << "\nNew file is created successfully\n";
-            vault.close();
-            return 0;
-        } else {
-            cerr << "\nFile was not created, possible problems could be lack of "
-                    "permission to write";
-            exit(1);
+
+    bool decrypt(const std::vector<uint8_t>& payload, const std::string& password, std::string& plaintext_out) {
+        if (payload.size() < MIN_PAYLOAD_LEN) {
+            std::cerr << "[!] Error: Corrupted or invalid vault payload length.\n";
+            return false;
         }
-        return 0;
-    }
-};
 
-class Read {
-public:
-    string Readvault(string master_password) {
-        Decryption dec;
-        ifstream vault(".vault.clef", ios::binary | ios::ate);
-        streamsize size = vault.tellg();
-        vault.seekg(0, ios::beg);
-        string raw_payload(size, '\0');
-        vault.read(&raw_payload[0], size);
-        return dec.dec(raw_payload, master_password);
-    }
-};
+        const uint8_t* salt = payload.data();
+        const uint8_t* nonce = payload.data() + SALT_LEN;
+        const uint8_t* ciphertext = payload.data() + SALT_LEN + NONCE_LEN;
+        size_t cipher_len = payload.size() - (SALT_LEN + NONCE_LEN);
 
-class Write {
-public:
-    void WriteRam(string& master_vault_data ,string app_name, string username, string password) {
-        string added_string = app_name + "\t" + username + "\t" + password + "\n";
-        master_vault_data += added_string;
-    }
-
-    void WriteFile(string final_payload){
-        ofstream vault(".vault.clef", ios::binary);
-        vault.write(final_payload.data(), final_payload.size());
-        vault.close();
-    }
-
-    void WRAM(string& master_vault_data){
-        Write wt;
-        string appName, uname, passwd;
-        // Write to RAM
-        while (true){
-            cout << "Enter the application name (EXIT to exit): ";
-            getline(cin, appName);
-            if (appName == ""){
-                continue;
-            }
-            if (appName == "EXIT"){
-                break;
-            }
-            cout << "Enter the username: ";
-            getline(cin, uname);
-            if (uname == ""){
-                continue;
-            }
-            cout << "Enter the password: ";
-            getline(cin, passwd);
-            if (passwd == ""){
-                continue;
-            }
-            wt.WriteRam(master_vault_data, appName, uname, passwd);
+        uint8_t key[crypto_secretbox_KEYBYTES];
+        if (!derive_key(key, password, salt)) {
+            return false;
         }
-    }
-};
 
-class Password {
-public:
-    string password(){
-        cout << "Enter a super strong password: ";
-        string passwd;
-        cin >> passwd;
-        cin.ignore();
-        return passwd;
-    }
-};
+        size_t plain_len = cipher_len - MAC_LEN;
+        std::vector<uint8_t> plain_buf(plain_len);
 
-class Delete{
-public:
-    void removeLine(string& master_vault_data, string target_app){
-        string updated_vault;
-        bool found = false;
-        string line;
-        istringstream stream(master_vault_data);
-        while (getline(stream, line)){
-            if (line.find(target_app + "\t") == 0){
-                found = true;
-                cout << "Deleted successfully!\n";
-            }else{
-                updated_vault += line + "\n";
-            }
+        int res = crypto_secretbox_open_easy(
+            plain_buf.data(),
+            ciphertext,
+            cipher_len,
+            nonce,
+            key
+        );
+
+        sodium_memzero(key, sizeof(key));
+
+        if (res != 0) {
+            std::cerr << "[!] Error: Authentication failed. Incorrect master password or tampered vault.\n";
+            sodium_memzero(plain_buf.data(), plain_buf.size());
+            return false;
         }
-        master_vault_data = updated_vault;
-        if (!found) { cout << "App not found!\n"; }
+
+        plaintext_out.assign(reinterpret_cast<char*>(plain_buf.data()), plain_len);
+        sodium_memzero(plain_buf.data(), plain_buf.size());
+        return true;
     }
-};
+}
+
+namespace VaultIO {
+
+    std::vector<uint8_t> read_binary_file() {
+        std::ifstream file(VAULT_PATH, std::ios::binary | std::ios::ate);
+        if (!file.is_open()) return {};
+
+        std::streamsize size = file.tellg();
+        if (size <= 0) return {};
+
+        file.seekg(0, std::ios::beg);
+        std::vector<uint8_t> buffer(size);
+        if (!file.read(reinterpret_cast<char*>(buffer.data()), size)) {
+            return {};
+        }
+        return buffer;
+    }
+
+    bool write_binary_file(const std::vector<uint8_t>& data) {
+        std::ofstream file(VAULT_PATH, std::ios::binary | std::ios::trunc);
+        if (!file.is_open()) return false;
+
+        file.write(reinterpret_cast<const char*>(data.data()), data.size());
+        return file.good();
+    }
+
+    std::string get_line(const std::string& prompt) {
+        std::cout << prompt;
+        std::string line;
+        std::getline(std::cin, line);
+        return line;
+    }
+}
 
 int main() {
-    // Sodium initialization
-    if (sodium_init() < 0){
-        cout << "Initialization failed";
+    if (!VaultSecurity::init()) {
+        return 1;
     }
-    // Objects
-    string password;
-    CheckCreate CC;
-    Read rd;
-    Write wt;
-    Delete dt;
-    Password pd;
-    Encryption encrypt;
-    Decryption decrypt;
 
-    // Variables
-    int check = CC.check();
-    char choice = 'y';
-    string master_vault_data = "", appName;
-    string master_password;
+    std::string master_password;
+    std::string vault_data;
 
-    // Logic for phase 1
-    if (check == 404){
-        cout << "Vault not found, Do you want to create a new vault? (Y/n): ";
-        cin >> choice;
-        master_password = pd.password();
-        if(choice == 'y' || choice == 'Y'){
-            CC.create();
-        }else if(choice == 'n' || choice == 'N'){
-            cout << "Exiting....";
-            exit(1);
-        }else {
-            cout << "Invaild syntax...";
-            exit(1);
+    if (!VaultSecurity::file_exists()) {
+        std::cout << "No vault found. Create a new vault? (y/n): ";
+        std::string ans;
+        std::getline(std::cin, ans);
+        if (ans != "y" && ans != "Y") return 0;
+
+        master_password = VaultIO::get_line("Set a strong master password: ");
+        if (master_password.empty()) {
+            std::cerr << "[!] Password cannot be empty.\n";
+            return 1;
         }
-    }else if(check == 1){
-        cout << "Enter your master password to open the vault: ";
-        cin >> master_password;
-        master_vault_data = rd.Readvault(master_password);
-        if (master_vault_data == "ERROR") {
-            exit(1);
+
+        if (!VaultSecurity::create_secure_file()) {
+            return 1;
         }
-        cout << "===================================\n";
-        cout << master_vault_data;
-        cout << "===================================\n";
+    } else {
+        master_password = VaultIO::get_line("Enter master password: ");
+        std::vector<uint8_t> payload = VaultIO::read_binary_file();
+
+        if (!VaultSecurity::decrypt(payload, master_password, vault_data)) {
+            secure_zero_string(master_password);
+            return 1;
+        }
+        std::cout << "\n[+] Vault Unlocked Successfully.\n";
     }
-    while (true){
-        cout << "Options: (A)dd new password, (D)elete a password, (S)ave and Exit: ";
-        cin >> choice;
-        cin.ignore();
-        if (choice == 'A' || choice == 'a'){
-            wt.WRAM(master_vault_data);
-        }
-        else if (choice == 'D' || choice == 'd'){
-            cout << "Which app username and password should be deleted: ";
-            getline(cin, appName);
-            dt.removeLine(master_vault_data, appName);
-        }
-        else
+
+    while (true) {
+        std::cout << "\nOptions: (V)iew, (A)dd, (D)elete, (S)ave & Exit: ";
+        std::string choice;
+        std::getline(std::cin, choice);
+
+        if (choice == "V" || choice == "v") {
+            std::cout << "\n--- VAULT CONTENTS ---\n";
+            std::cout << (vault_data.empty() ? "[Vault is empty]\n" : vault_data);
+            std::cout << "----------------------\n";
+        } 
+        else if (choice == "A" || choice == "a") {
+            std::string app = VaultIO::get_line("App Name: ");
+            std::string user = VaultIO::get_line("Username: ");
+            std::string pass = VaultIO::get_line("Password: ");
+            
+            if (!app.empty() && !user.empty() && !pass.empty()) {
+                vault_data += app + "\t" + user + "\t" + pass + "\n";
+                std::cout << "[+] Entry added in RAM.\n";
+            }
+            secure_zero_string(pass);
+        } 
+        else if (choice == "D" || choice == "d") {
+            std::string target = VaultIO::get_line("App to delete: ");
+            std::istringstream stream(vault_data);
+            std::string line, updated_data;
+            bool found = false;
+
+            while (std::getline(stream, line)) {
+                if (line.rfind(target + "\t", 0) == 0) {
+                    found = true;
+                } else {
+                    updated_data += line + "\n";
+                }
+            }
+            vault_data = updated_data;
+            std::cout << (found ? "[+] Deleted successfully.\n" : "[!] App not found.\n");
+        } 
+        else if (choice == "S" || choice == "s") {
+            std::vector<uint8_t> encrypted_payload;
+            if (VaultSecurity::encrypt(vault_data, master_password, encrypted_payload)) {
+                if (VaultIO::write_binary_file(encrypted_payload)) {
+                    std::cout << "[+] Vault encrypted and saved to disk.\n";
+                }
+            }
             break;
+        }
     }
 
-    // Passing the master data and the master password to encrypt
-    string encrypted_text = encrypt.enc(master_vault_data, master_password);
-
-    // Writing the encrypted_text to File
-    wt.WriteFile(encrypted_text);
+    secure_zero_string(vault_data);
+    secure_zero_string(master_password);
 
     return 0;
 }
