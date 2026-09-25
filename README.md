@@ -77,7 +77,7 @@ Clone the repository and compile `main.cpp`, ensuring you link against `libsodiu
 ```bash
 git clone [https://github.com/NotAlive24/clef.git](https://github.com/NotAlive24/clef.git)
 cd clef
-g++ -std=c++17 main.cpp -lsodium -o clef
+g++ -std=c++17 clef.cpp -lsodium -o clef
 
 ```
 
